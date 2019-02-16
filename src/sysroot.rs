@@ -335,6 +335,30 @@ impl Blueprint {
             }
         }
 
+        for (k, v) in patch.iter_mut() {
+            if let Value::Table(ref mut source) = v {
+                for (k2, v2) in source.iter_mut() {
+                    if let Value::Table(ref mut map) = v2 {
+                        if let Some(path) = map.get_mut("path") {
+                            let p = PathBuf::from(path.as_str()
+                                .ok_or_else(|| format!("patch.{}.{}.path must be a string", k, k2))?);
+
+                            if !p.is_absolute() {
+                                *path = Value::String(
+                                    root.path()
+                                        .join(&p)
+                                        .canonicalize()
+                                        .chain_err(|| format!("couldn't canonicalize {}", p.display()))?
+                                        .display()
+                                        .to_string(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let deps = match (
             toml.and_then(|t| t.dependencies()),
             toml.and_then(|t| t.target_dependencies(target)),
