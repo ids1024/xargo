@@ -233,6 +233,17 @@ pub fn update(
 
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
+    let lock = home.lock_rw(&meta.host)?;
+
+    let bin_src = sysroot.path().join("lib/rustlib").join(&meta.host).join("bin");
+    let bin_dst = lock.parent().join("bin");
+    if !bin_dst.exists() {
+        if bin_src.exists() {
+            util::mkdir(&bin_dst)?;
+            util::cp_r(&bin_src, &bin_dst)?;
+        }
+    }
+
     if old_hash(cmode, home)? != Some(hash) {
         build(
             cmode,
@@ -251,7 +262,6 @@ pub fn update(
         return Ok(());
     }
 
-    let lock = home.lock_rw(&meta.host)?;
     let hfile = lock.parent().join(".hash");
 
     let hash = meta.commit_hash.as_ref().map(|s| &**s).unwrap_or("");
